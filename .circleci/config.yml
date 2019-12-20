@@ -1,80 +1,18 @@
 version: 2.1
-
-
 orbs:
   gcp-gke: circleci/gcp-gke@1.0.1
-  kubernetes: circleci/kubernetes@0.10.0
-
-
-jobs:
-  create-deployment-windows:
-    parameters:
-      cluster-name:
-        type: string
-    executor: gcp-gke/default
-    steps:
-      - setup_remote_docker
-      - checkout
-      - gcp-gke/update-kubeconfig-with-credentials:
-          cluster: <<parameters.cluster-name>>
-          perform-login: true
-          install-kubectl: true
-      - run:
-          name: Check cluster initialization
-          command: |
-            kubectl get mutatingwebhookconfigurations
-      - kubernetes/create-or-update-resource:
-          resource-file-path: "tests/windows-iis/deployment.yaml"
-          resource-name: "deployment/iis"
-          get-rollout-status: true
-      - run:
-          name: Expose deployment via a service
-          command: |
-            kubectl expose deployment iis --type=LoadBalancer --name=iis
-      - run:
-          name: Validate service
-          command: |
-            kubectl get services
-            sleep 30
-            for attempt in {1..20}; do
-              EXTERNAL_IP=$(kubectl get service iis | awk '{print $4}' | tail -n1)
-              echo "Checking external IP: ${EXTERNAL_IP}"
-              if [ -n "${EXTERNAL_IP}" ] && [ -z $(echo "${EXTERNAL_IP}" | grep "pending") ]; then
-                break
-              fi
-              echo "Waiting for external IP to be ready: ${EXTERNAL_IP}"
-              sleep 10
-            done
-            sleep 180
-            curl -s --retry 10 "http://$EXTERNAL_IP" | grep "IIS Windows Server"
 
 workflows:
   spin-up:
     jobs:
-      - gcp-gke/create-cluster:
-          name: create-cluster-windows
-          cluster: my-cluster-windows
-          additional-args: "--cluster-version=1.14 --enable-ip-alias --num-nodes=1"
-      - gcp-gke/create-node-pool:
-          name: create-node-pool-windows
-          node-pool: my-pool-windows
-          cluster: my-cluster-windows
-          additional-args: "--image-type=WINDOWS_SAC --no-enable-autoupgrade --machine-type=n1-standard-2"
+      - gke/create-cluster:
+          additional-args: '--cluster-version=1.14 --enable-ip-alias --num-nodes=1'
+          cluster: gcp-testing
+      - gke/create-node-pool:
+          additional-args: >-
+            --image-type=WINDOWS_SAC --no-enable-autoupgrade
+            --machine-type=n1-standard-2
+          cluster: gcp-testing
+          node-pool: my-windows-node-pool
           requires:
-            - create-cluster-windows
-      - create-deployment-windows:
-          requires:
-            - create-node-pool-windows
-          cluster-name: my-cluster-windows
-
-  # tear-down:
-  #   jobs:          
-  #     - gcp-gke/delete-node-pool:
-  #         name: delete-node-pool-windows
-  #         node-pool: my-pool-windows
-  #         cluster: my-cluster-windows
-  #     - gcp-gke/delete-cluster:
-  #         name: delete-cluster-windows
-  #         cluster: my-cluster-windows
-  #         requires:
-  #           - delete-node-pool-windows
+            - gke/create-cluster
