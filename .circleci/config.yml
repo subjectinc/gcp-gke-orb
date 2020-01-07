@@ -5,5 +5,14 @@ version: 2.1
 workflows:
   main:
     jobs:
-      - gke/delete-cluster:
+      - gke/create-cluster:
+          additional-args: '--cluster-version=1.14 --enable-ip-alias --num-nodes=1'
           cluster: gcp-testing
+      - gke/create-node-pool:
+          additional-args: >-
+            --image-type=WINDOWS_SAC --no-enable-autoupgrade
+            --machine-type=n1-standard-2 --num-nodes=1
+          cluster: gcp-testing
+          node-pool: my-windows-node-pool
+          requires:
+            - gke/create-cluster
