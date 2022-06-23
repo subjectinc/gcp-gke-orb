@@ -34,3 +34,7 @@ We welcome [issues](https://github.com/CircleCI-Public/gcp-gke-orb/issues) to an
 For further questions/comments about this or other orbs, visit the Orb Category of [CircleCI Discuss](https://discuss.circleci.com/c/ecosystem/orbs).
 
 [reg-page]: https://circleci.com/orbs/registry/orb/circleci/gcp-gke
+
+
+## orb pack
+`circleci orb pack src > orb.yml`
